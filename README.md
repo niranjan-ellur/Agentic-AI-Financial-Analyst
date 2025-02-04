@@ -27,7 +27,7 @@ AgenticFinAnalyst delivers institutional-grade stock analysis by combining real-
 
 ```bash
 # Clone repository
-git clone (https://github.com/niranjan-ellur/Agentic-AI-Financial-Analyst.git)
+git clone [https://github.com/niranjan-ellur/Agentic-AI-Financial-Analyst.git]
 
 # Install dependencies
 pip install -r requirements.txt
@@ -76,7 +76,7 @@ print(analysis.summary())
 
 
 ## Contact
-Project Link: https://github.com/niranjan-ellur/Agentic-AI-Financial-Analyst.git
+Project Link: [https://github.com/niranjan-ellur/Agentic-AI-Financial-Analyst]
 
 ---
 ⭐️ If you find this tool useful, please consider giving it a star!
