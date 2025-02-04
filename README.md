@@ -78,5 +78,10 @@ print(analysis.summary())
 ## Contact
 Project Link: [https://github.com/niranjan-ellur/Agentic-AI-Financial-Analyst]
 
+## Result
+
+![image](https://github.com/user-attachments/assets/38a5d2ac-6088-4faf-ad30-636eee107c9d)
+
+
 ---
 ⭐️ If you find this tool useful, please consider giving it a star!
