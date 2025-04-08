@@ -1,87 +1,65 @@
-import os
 import streamlit as st
+from phi.agent import Agent
+from phi.model.groq import Groq as PhiGroq
+from phi.tools.yfinance import YFinanceTools
+from phi.tools.duckduckgo import DuckDuckGo
 from dotenv import load_dotenv
-from groq import Groq
-import yfinance as yf
-from duckduckgo_search import DDGS
+import os
 
-# Load environment variables
+# Load API keys from .env
 load_dotenv()
+GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+PHI_API_KEY = os.getenv("PHI_API_KEY")
 
-# Function to get stock information
-def get_stock_info(ticker):
-    try:
-        stock = yf.Ticker(ticker)
-        
-        # Gather basic information
-        info = {
-            'Name': stock.info.get('longName', 'N/A'),
-            'Sector': stock.info.get('sector', 'N/A'),
-            'Industry': stock.info.get('industry', 'N/A'),
-            'Market Cap': stock.info.get('marketCap', 'N/A'),
-            'Current Price': stock.info.get('currentPrice', 'N/A'),
-            '52 Week High': stock.info.get('fiftyTwoWeekHigh', 'N/A'),
-            '52 Week Low': stock.info.get('fiftyTwoWeekLow', 'N/A')
-        }
-        
-        # Get analyst recommendations
-        recommendations = stock.recommendations if stock.recommendations is not None else "No recent recommendations"
-        
-        # Get recent news
-        news = stock.news[:3] if stock.news else []
+# Validate keys
+if not GROQ_API_KEY or not PHI_API_KEY:
+    st.error("Missing GROQ_API_KEY or PHI_API_KEY in .env file.")
+    st.stop()
 
-        return info, recommendations, news
-    except Exception as e:
-        st.error(f"Error fetching stock information: {e}")
-        return None, None, None
+# Define agents
+finance_agent = Agent(
+    name="Financial AI Agent",
+    model=PhiGroq(id="llama-3-3b-8192", api_key=GROQ_API_KEY),
+    tools=[YFinanceTools(
+        stock_price=True,
+        analyst_recommendations=True,
+        stock_fundamentals=True,
+        company_news=True,
+        technical_indicators=True,
+        historical_prices=True,
+    )],
+    instructions=["Use tables to display the data"],
+    markdown=True,
+)
 
-# Function to search web for additional context
-def web_search(query):
-    try:
-        with DDGS() as ddgs:
-            results = list(ddgs.text(query, max_results=3))
-        return results
-    except Exception as e:
-        st.error(f"Web search error: {e}")
-        return []
+web_search_agent = Agent(
+    name="Web Search Agent",
+    role="Search the web for information",
+    model=PhiGroq(id="llama-3-3b-8192", api_key=GROQ_API_KEY),
+    tools=[DuckDuckGo()],
+    instructions=["Provide the latest news", "Always include sources"],
+    markdown=True,
+)
 
-# Function to generate AI analysis with truncated input
-def generate_ai_analysis(client, ticker, stock_info, recommendations, news):
-    try:
-        # Prepare a concise prompt to avoid rate limits
-        prompt = f"""Provide a concise financial analysis for {ticker}:
+multi_ai_agent = Agent(
+    model=PhiGroq(id="llama-3-3b-8192", api_key=GROQ_API_KEY),
+    team=[web_search_agent, finance_agent],
+    instructions=["Always include sources", "Use tables to display the data"],
+    markdown=True,
+)
 
-Stock Summary:
-- Name: {stock_info.get('Name', 'N/A')}
-- Sector: {stock_info.get('Sector', 'N/A')}
-- Market Cap: {stock_info.get('Market Cap', 'N/A')}
-- Current Price: {stock_info.get('Current Price', 'N/A')}
+# --- Streamlit UI ---
+st.set_page_config(page_title="Financial AI Agent", layout="wide")
+st.title("📈 Financial AI Agent with Groq & Phi")
 
-Key Financial Highlights:
-{recommendations}
+ticker = st.text_input("Enter Stock Ticker (e.g., AAPL, NVDA, TSLA)", value="NVDA")
 
-Please provide:
-1. Brief market sentiment
-2. Top 3 investment considerations
-3. Short-term outlook
-"""
-        
-        # Generate AI analysis
-        chat_completion = client.chat.completions.create(
-            messages=[
-                {
-                    "role": "user",
-                    "content": prompt
-                }
-            ],
-            model="llama-3.3-70b-versatile",
-            max_tokens=1000  # Limit token usage
-        )
-        
-        return chat_completion.choices[0].message.content
-    except Exception as e:
-        st.error(f"AI analysis error: {e}")
-        return None
+if st.button("Analyze"):
+    with st.spinner(f"Analyzing {ticker}..."):
+        question = f"Summarize analyst recommendations and share the latest news for {ticker}"
+        result = multi_ai_agent.chat(question)
+        st.markdown(result.content)
+
 
 # Main Streamlit App
 def main():
